@@ -8,7 +8,7 @@ cursor = conn.cursor()
 def crear_tabla_productos():
     """Borra la tabla y la vuelve a crear para asegurar la estructura correcta.
     Ahora usa la combinación de codigo y categoria como clave primaria para permitir
-    IDs duplicados en diferentes categorías."""
+    codigos duplicados en diferentes categorías."""
     cursor.execute("DROP TABLE IF EXISTS productos")
     cursor.execute('''CREATE TABLE productos
                       (codigo INTEGER,
@@ -20,11 +20,11 @@ def crear_tabla_productos():
                       iva REAL,
                       PRIMARY KEY (codigo, categoria))''') # Clave primaria compuesta
     conn.commit()
-    print("¡Base de datos lista para empezar! ✨")
+    print("Base de datos lista para empezar.")
 
 def agregar_producto():
     """Función para agregar un nuevo producto al inventario.
-    Ahora valida el código y la categoría al instante para evitar duplicados."""
+    Ahora valida el codigo y la categoría al instante para evitar duplicados."""
     print("\n--- AGREGAR NUEVO PRODUCTO ---")
     
     # Definimos la lista de categorías válidas y sus IVAs correspondientes
@@ -38,6 +38,8 @@ def agregar_producto():
     
     try:
         while True:
+            codigo = int(input(f"Ingrese el codigo del producto: "))
+            
             # Mostramos las categorías y sus IVAs
             print("Categorías disponibles y sus IVAs:")
             for cat, iva in ivas_por_categoria.items():
@@ -45,20 +47,15 @@ def agregar_producto():
             
             categoria = input("Ingrese la categoría: ").capitalize()
             if categoria in categorias_validas:
-                break
+                # --- Validación instantánea de codigo repetido ---
+                cursor.execute("SELECT COUNT(*) FROM productos WHERE codigo = ? AND categoria = ?", (codigo, categoria))
+                if cursor.fetchone()[0] > 0:
+                    print(f"\nError: El codigo {codigo} ya existe en la categoría {categoria}. Por favor, ingrese un codigo diferente.")
+                    continue # Volvemos a pedir el codigo
+                else:
+                    break # El codigo es válido, salimos del bucle
             else:
-                print("¡Categoría no válida! Por favor, elija una de la lista.")
-
-        while True:
-            codigo = int(input(f"Ingrese el código del producto (único para {categoria}): "))
-            
-            # --- Validación instantánea de ID repetido ---
-            cursor.execute("SELECT COUNT(*) FROM productos WHERE codigo = ? AND categoria = ?", (codigo, categoria))
-            if cursor.fetchone()[0] > 0:
-                print(f"\n¡Error! El código {codigo} ya existe en la categoría {categoria}. Por favor, ingrese un código diferente.")
-                continue # Volvemos a pedir el código
-            else:
-                break # El código es válido, salimos del bucle
+                print("Categoría no válida. Por favor, elija una de la lista.")
 
         nombre = input("Ingrese el nombre del producto: ")
         unidad = input("Ingrese la unidad de medida (Ej: unidad, kg, litro): ")
@@ -73,18 +70,18 @@ def agregar_producto():
         cursor.execute('''INSERT INTO productos (codigo, nombre, categoria, unidad, existencia, precio, iva)
                           VALUES (?, ?, ?, ?, ?, ?, ?)''', (codigo, nombre, categoria, unidad, existencia, precio, iva))
         conn.commit()
-        print(f"\n¡Producto '{nombre}' agregado correctamente! ✅")
+        print(f"\nProducto '{nombre}' agregado correctamente.")
     except ValueError:
-        print("\n¡Error! Por favor, ingrese un número válido en los campos numéricos.")
+        print("\nError: Por favor, ingrese un número válido en los campos numéricos.")
     except sqlite3.IntegrityError:
-        print(f"\n¡Error! El código {codigo} ya existe en la categoría {categoria}. Use un código diferente.")
+        print(f"\nError: El codigo {codigo} ya existe en la categoría {categoria}. Use un codigo diferente.")
 
 def eliminar_producto():
-    """Función para eliminar un producto por su código y categoría."""
+    """Función para eliminar un producto por su codigo y categoría."""
     print("\n--- ELIMINAR UN PRODUCTO ---")
     try:
         categoria = input("Ingrese la categoría del producto a eliminar: ").capitalize()
-        codigo = int(input(f"Ingrese el código del producto en la categoría {categoria}: "))
+        codigo = int(input(f"Ingrese el codigo del producto en la categoría {categoria}: "))
         
         # Buscamos el producto para confirmar antes de eliminar
         cursor.execute("SELECT nombre FROM productos WHERE codigo = ? AND categoria = ?", (codigo, categoria))
@@ -95,13 +92,13 @@ def eliminar_producto():
             if confirmar == 's':
                 cursor.execute("DELETE FROM productos WHERE codigo = ? AND categoria = ?", (codigo, categoria))
                 conn.commit()
-                print(f"\n¡Producto '{producto_a_eliminar[0]}' eliminado correctamente! ✅")
+                print(f"\nProducto '{producto_a_eliminar[0]}' eliminado correctamente.")
             else:
                 print("Operación cancelada.")
         else:
-            print("¡Producto no encontrado! Revisa la categoría y el código.")
+            print("Producto no encontrado. Revisa la categoría y el codigo.")
     except ValueError:
-        print("\n¡Error! Por favor, ingrese un código numérico válido.")
+        print("\nError: Por favor, ingrese un código numérico válido.")
 
 def ver_inventario_completo():
     """Función para ver todos los productos en el inventario."""
@@ -110,7 +107,7 @@ def ver_inventario_completo():
     productos = cursor.fetchall()
     
     if not productos:
-        print("El inventario está vacío. ¡Vamos a agregar productos! 🛒")
+        print("El inventario está vacío. Vamos a agregar productos.")
     else:
         # Encabezado de la tabla para que se vea ordenado.
         print("-" * 100)
@@ -159,7 +156,7 @@ def crear_factura():
             if categoria_producto in categorias_validas:
                 break
             else:
-                print("¡Categoría no válida! Por favor, elija una de la lista.")
+                print("Categoría no válida. Por favor, elija una de la lista.")
 
         if categoria_producto == '0':
             break
@@ -181,12 +178,12 @@ def crear_factura():
                     cantidad_solicitada = float(cantidad_solicitada_str)
 
                     if cantidad_solicitada <= 0:
-                        print("¡Oh no! La cantidad debe ser mayor a cero.")
+                        print("La cantidad debe ser mayor a cero.")
                         continue
 
                     # Verificar si hay suficiente stock
                     if cantidad_solicitada > existencia:
-                        print(f"\n¡No hay suficiente stock! 😞")
+                        print(f"\nNo hay suficiente stock.")
                         print(f"Stock disponible de {nombre}: {existencia} {unidad}")
                         continue
                     
@@ -214,26 +211,26 @@ def crear_factura():
                     cursor.execute("UPDATE productos SET existencia = ? WHERE codigo = ? AND categoria = ?", (nueva_existencia, codigo, categoria_producto))
                     conn.commit()
 
-                    print(f"¡{nombre} agregado a la factura! Stock actualizado. ✅")
+                    print(f"Producto '{nombre}' agregado a la factura. Stock actualizado.")
                 
                 except ValueError:
-                    print("¡Error! Por favor, ingrese una cantidad numérica válida.")
+                    print("Error: Por favor, ingrese una cantidad numérica válida.")
 
             else:
-                print("¡Producto no encontrado! Revisa la categoría y el código.")
+                print("Producto no encontrado. Revisa la categoría y el código.")
         
         except ValueError:
-            print("¡Error! Por favor, ingrese un código numérico.")
+            print("Error: Por favor, ingrese un código numérico.")
 
     # Imprimir la factura final
     print("\n" + "*" * 40)
-    print("          ¡FACTURA GENERADA! 🧾")
+    print("          FACTURA GENERADA")
     print("*" * 40)
     print(f"Fecha y Hora: {datetime.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
     print("-" * 40)
     
     if not factura_activa:
-        print("¡La factura está vacía! Vuelve a intentar.")
+        print("La factura está vacía. Vuelve a intentar.")
     else:
         for item in factura_activa:
             print(f"- {item['nombre']}: {item['cantidad']:.2f} {item['unidad']} a ${item['precio_unitario']:.2f} c/u")
@@ -246,7 +243,7 @@ def crear_factura():
     gran_total = subtotal_factura + iva_total_factura
     print(f"GRAN TOTAL: ${gran_total:.2f}")
     print("=" * 40)
-    print("¡Gracias por su compra! ¡Vuelva pronto! 👋")
+    print("Gracias por su compra. Vuelva pronto.")
 
 
 def menu_principal():
@@ -276,10 +273,10 @@ def menu_principal():
         elif opcion == '5':
             eliminar_producto()
         elif opcion == '6':
-            print("\n¡Saliendo del programa! ¡Adiós! 👋")
+            print("\nSaliendo del programa. Adiós.")
             break
         else:
-            print("\n¡Opción no válida! Por favor, intente de nuevo. 😅")
+            print("\nOpción no válida. Por favor, intente de nuevo.")
 
 # ¡Iniciamos el programa!
 if __name__ == "__main__":
@@ -287,5 +284,3 @@ if __name__ == "__main__":
 
 # Cerramos la conexión a la base de datos al finalizar.
 conn.close()
-
-
